@@ -1,0 +1,14 @@
+language: node_js
+sudo: false
+node_js:
+- '4.2'
+script: npm test
+deploy:
+  provider: npm
+  email: nawazdhandala@outlook.com
+  api_key:
+    secure: deHF5J6LVgrKsjY5ovfi92FdEFmj3qIqfxJKRRze6jGfC4/q26WauLfed/W5SAknzLtaaSzCH+YLQ/T+F/GKY19POjRLNdCRk0InnZWHSxOVcA7hVLRpCuJbRdUtd1mzpgfOTmCUMhkFw3b99xEmtp6M5RfQ9lp6E0NkFrKPqQk=
+  skip_cleanup: true
+  on:
+    tags: true
+    repo: cloudboost/flow
