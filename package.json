@@ -1,0 +1,41 @@
+{
+  "name": "cloudboost-flow",
+  "description": "Flow-Based Programming environment for JavaScript",
+  "keywords": [
+    "fbp",
+    "workflow",
+    "flow",
+    "cloudboost",
+    "cloudboost-flow"
+  ],
+  "author": "Nawaz Dhandala <nawazdhandala@outlook.com>",
+  "version": "0.0.1",
+  "license": "Apache2.0",
+  "engines": {
+    "node": ">=0.6.0"
+  },
+  "dependencies": {
+    "fbp": "~1.5.0",
+    "fbp-manifest": "~0.1.8"
+  },
+  "devDependencies": {
+    "chai": "~3.5.0",
+    "grunt": "~0.4.5",
+    "grunt-cli": "~1.2.0",
+    "grunt-contrib-connect": "~1.0.1",
+    "grunt-contrib-watch": "~1.0.0",
+    "grunt-mocha-phantomjs": "~3.0.0",
+    "grunt-mocha-test": "^0.12.7",
+    "json-loader": "^0.5.4",
+    "mocha": "^2.5.2"
+  },
+  "main": "./lib/Flow",
+  "homepage": "http://cloudboost.io",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/cloudboost/flow.git"
+  },
+  "scripts": {
+    "test": "./node_modules/.bin/grunt test"
+  }
+}
