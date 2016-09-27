@@ -3,7 +3,6 @@
 /components/
 /browser/
 bin/*.js
-/lib/
 /_site/
 spec/*.js
 spec/browser/*.js
