@@ -13,9 +13,9 @@ let registerLoader = require('./loader/register');
 class ComponentLoader extends EventEmitter {
   constructor(baseDir, options) {
     super()
-    if(!options){
-      options = {};
-    }
+  	if(!options){
+  		options = {};
+  	}
     this.baseDir = baseDir;
     this.options = options;
     this.components = null;
@@ -55,7 +55,7 @@ class ComponentLoader extends EventEmitter {
       this.ready = true;
       this.emit('ready', true);
       if(callback)
-        return callback(null, this.components);
+      	return callback(null, this.components);
     }
     );
   }

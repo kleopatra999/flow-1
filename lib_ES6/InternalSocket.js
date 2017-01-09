@@ -19,37 +19,37 @@ class InternalSocket extends EventEmitter {
   }
 
   debugEmitEvent(event, data) {
-      var error, error1;
-      try {
-        return this.emit(event, data);
-      } catch (error1) {
-        error = error1;
-        if (error.id && error.metadata && error.error) {
-          if (this.listeners('error').length === 0) {
-            throw error.error;
-          }
-          this.emit('error', error);
-          return;
-        }
-        if (this.listeners('error').length === 0) {
-          throw error;
-        }
-        return this.emit('error', {
-          id: this.to.process.id,
-          error: error,
-          metadata: this.metadata
-        });
+    try {
+      return this.emit(event, data);
+    } catch (error) {
+      if (error.id && error.metadata && error.error) {
+        // Wrapped debuggable error coming from downstream, no need to wrap
+        if (this.listeners('error').length === 0) { throw error.error; }
+        this.emit('error', error);
+        return;
       }
-    };
+
+      if (this.listeners('error').length === 0) { throw error; }
+
+      return this.emit('error', {
+        id: this.to.process.id,
+        error,
+        metadata: this.metadata
+      }
+      );
+    }
+  }
 
   constructor(metadata) {
     super()
-    this.metadata = metadata != null ? metadata : {};
-      this.brackets = [];
-      this.connected = false;
-      this.dataDelegate = null;
-      this.debug = false;
-      this.emitEvent = this.regularEmitEvent;
+    if(!metadata)
+      metadata = {};
+    this.metadata = metadata;
+    this.brackets = [];
+    this.connected = false;
+    this.dataDelegate = null;
+    this.debug = false;
+    this.emitEvent = this.regularEmitEvent;
   }
 
   // ## Socket connections
@@ -78,14 +78,14 @@ class InternalSocket extends EventEmitter {
   //         # Otherwise, call same method recursively
   //         @readBuffer fd, position, size, buffer
   connect() {
-      this.connected = true;
-      return this.emitEvent('connect', null);
-    };
+    this.connected = true;
+    return this.handleSocketEvent('connect', null, false);
+  }
 
   disconnect() {
-      this.connected = false;
-      return this.emitEvent('disconnect', null);
-    };
+    this.connected = false;
+    return this.handleSocketEvent('disconnect', null, false);
+  }
 
   isConnected() { return this.connected; }
 
@@ -101,34 +101,28 @@ class InternalSocket extends EventEmitter {
   // can be constructed with more flexibility, as file buffers or
   // message queues can be used as additional packet relay mechanisms.
   send(data) {
-      if (data === void 0 && typeof this.dataDelegate === 'function') {
-        data = this.dataDelegate();
-      }
-      return this.handleSocketEvent('data', data);
-    };
+    if (data === undefined && typeof this.dataDelegate === 'function') { data = this.dataDelegate(); }
+    return this.handleSocketEvent('data', data);
+  }
 
   // ## Sending information packets without open bracket
   //
   // As _connect_ event is considered as open bracket, it needs to be followed
   // by a _disconnect_ event or a closing bracket. In the new simplified
   // sending semantics single IP objects can be sent without open/close brackets.
-  post(ip, autoDisconnect) {
-      if (autoDisconnect == null) {
-        autoDisconnect = true;
-      }
-      if (ip === void 0 && typeof this.dataDelegate === 'function') {
-        ip = this.dataDelegate();
-      }
-      if (!this.isConnected() && this.brackets.length === 0) {
-        this.connected = true;
-        this.emitEvent('connect', null);
-      }
-      this.handleSocketEvent('ip', ip, false);
-      if (autoDisconnect && this.isConnected() && this.brackets.length === 0) {
-        this.connected = false;
-        return this.emitEvent('disconnect', null);
-      }
-    };
+  post(ip, autoDisconnect = true) {
+    if (ip === undefined && typeof this.dataDelegate === 'function') { ip = this.dataDelegate(); }
+    // Send legacy connect/disconnect if needed
+    if (!this.isConnected() && this.brackets.length === 0) {
+      this.connected = true;
+      this.emitEvent('connect', null);
+    }
+    this.handleSocketEvent('ip', ip, false);
+    if (autoDisconnect && this.isConnected() && this.brackets.length === 0) {
+      this.connected = false;
+      return this.emitEvent('disconnect', null);
+    }
+  }
 
   // ## Information Packet grouping
   //
@@ -160,8 +154,8 @@ class InternalSocket extends EventEmitter {
   // to pass received groupings onward if the data structures remain
   // intact through the component's processing.
   beginGroup(group) {
-      return this.handleSocketEvent('begingroup', group);
-    };
+    return this.handleSocketEvent('begingroup', group);
+  }
 
   endGroup() {
     return this.handleSocketEvent('endgroup');
@@ -173,11 +167,11 @@ class InternalSocket extends EventEmitter {
   // should the `send` method receive undefined for `data`.  This
   // helps in the case of defaulting values.
   setDataDelegate(delegate) {
-      if (typeof delegate !== 'function') {
-        throw Error('A data delegate must be a function.');
-      }
-      return this.dataDelegate = delegate;
-    };
+    if (typeof delegate !== 'function') {
+      throw Error('A data delegate must be a function.');
+    }
+    return this.dataDelegate = delegate;
+  }
 
   // ## Socket debug mode
   //
@@ -185,9 +179,9 @@ class InternalSocket extends EventEmitter {
   // sent to them. These errors can then be reported to the network for
   // notification to the developer.
   setDebug(active) {
-      this.debug = active;
-      return this.emitEvent = this.debug ? this.debugEmitEvent : this.regularEmitEvent;
-    };
+    this.debug = active;
+    return this.emitEvent = this.debug ? this.debugEmitEvent : this.regularEmitEvent;
+  }
 
   // ## Socket identifiers
   //
@@ -196,111 +190,96 @@ class InternalSocket extends EventEmitter {
   // but for sockets sending initial information packets to
   // components may also loom like _DATA -> ReadFile:SOURCE_.
   getId() {
-      var fromStr, toStr;
-      fromStr = function(from) {
-        return from.process.id + "() " + (from.port.toUpperCase());
-      };
-      toStr = function(to) {
-        return (to.port.toUpperCase()) + " " + to.process.id + "()";
-      };
-      if (!(this.from || this.to)) {
-        return "UNDEFINED";
-      }
-      if (this.from && !this.to) {
-        return (fromStr(this.from)) + " -> ANON";
-      }
-      if (!this.from) {
-        return "DATA -> " + (toStr(this.to));
-      }
-      return (fromStr(this.from)) + " -> " + (toStr(this.to));
-    };
+    let fromStr = from => `${from.process.id}() ${from.port.toUpperCase()}`;
+    let toStr = to => `${to.port.toUpperCase()} ${to.process.id}()`;
+
+    if (!this.from && !this.to) { return "UNDEFINED"; }
+    if (this.from && !this.to) { return `${fromStr(this.from)} -> ANON`; }
+    if (!this.from) { return `DATA -> ${toStr(this.to)}`; }
+    return `${fromStr(this.from)} -> ${toStr(this.to)}`;
+  }
 
   legacyToIp(event, payload) {
-      if (IP.isIP(payload)) {
-        return payload;
-      }
-      switch (event) {
-        case 'begingroup':
-          return new IP('openBracket', payload);
-        case 'endgroup':
-          return new IP('closeBracket');
-        case 'data':
-          return new IP('data', payload);
-        default:
-          return null;
-      }
-    };
+    // No need to wrap modern IP Objects
+    if (IP.isIP(payload)) { return payload; }
+
+    // Wrap legacy events into appropriate IP objects
+    switch (event) {
+      case 'connect': case 'begingroup':
+        return new IP('openBracket', payload);
+      case 'disconnect': case 'endgroup':
+        return new IP('closeBracket');
+      default:
+        return new IP('data', payload);
+    }
+  }
 
   ipToLegacy(ip) {
-      var legacy;
-      switch (ip.type) {
-        case 'openBracket':
-          return legacy = {
-            event: 'begingroup',
-            payload: ip.data
-          };
-        case 'data':
-          return legacy = {
-            event: 'data',
-            payload: ip.data
-          };
-        case 'closeBracket':
-          return legacy = {
-            event: 'endgroup',
-            payload: ip.data
-          };
-      }
-    };
+    let legacy;
+    switch (ip.type) {
+      case 'openBracket':
+        return legacy = {
+          event: 'begingroup',
+          payload: ip.data
+        };
+      case 'data':
+        return legacy = {
+          event: 'data',
+          payload: ip.data
+        };
+      case 'closeBracket':
+        return legacy = {
+          event: 'endgroup',
+          payload: ip.data
+        };
+    }
+  }
 
-  handleSocketEvent(event, payload, autoConnect) {
-      var ip, isIP, legacy;
-      if (autoConnect == null) {
-        autoConnect = true;
-      }
-      isIP = event === 'ip' && IP.isIP(payload);
-      ip = isIP ? payload : this.legacyToIp(event, payload);
-      if (!ip) {
-        return;
-      }
-      if (!this.isConnected() && autoConnect && this.brackets.length === 0) {
-        this.connect();
-      }
-      if (event === 'begingroup') {
-        this.brackets.push(payload);
-      }
-      if (isIP && ip.type === 'openBracket') {
-        this.brackets.push(ip.data);
-      }
-      if (event === 'endgroup') {
-        if (this.brackets.length === 0) {
-          return;
-        }
-        ip.data = this.brackets.pop();
-        payload = ip.data;
-      }
-      if (isIP && payload.type === 'closeBracket') {
-        if (this.brackets.length === 0) {
-          return;
-        }
-        this.brackets.pop();
-      }
-      this.emitEvent('ip', ip);
-      if (!(ip && ip.type)) {
-        return;
-      }
-      if (isIP) {
-        legacy = this.ipToLegacy(ip);
-        event = legacy.event;
-        payload = legacy.payload;
-      }
-      if (event === 'connect') {
-        this.connected = true;
-      }
-      if (event === 'disconnect') {
-        this.connected = false;
-      }
-      return this.emitEvent(event, payload);
-    };
+  handleSocketEvent(event, payload, autoConnect = true) {
+    let isIP = event === 'ip' && IP.isIP(payload);
+    let ip = isIP ? payload : this.legacyToIp(event, payload);
+
+    if (!this.isConnected() && autoConnect && this.brackets.length === 0) {
+      // Connect before sending
+      this.connect();
+    }
+
+    if (event === 'begingroup') {
+      this.brackets.push(payload);
+    }
+    if (isIP && ip.type === 'openBracket') {
+      this.brackets.push(ip.data);
+    }
+
+    if (event === 'endgroup') {
+      // Prevent closing already closed groups
+      if (this.brackets.length === 0) { return; }
+      // Add group name to bracket
+      ip.data = this.brackets.pop();
+      payload = ip.data;
+    }
+    if (isIP && payload.type === 'closeBracket') {
+      // Prevent closing already closed brackets
+      if (this.brackets.length === 0) { return; }
+      this.brackets.pop();
+    }
+
+    // Emit the IP Object
+    this.emitEvent('ip', ip);
+
+    // Emit the legacy event
+    if (!ip || !ip.type) { return; }
+
+    if (isIP) {
+      let legacy = this.ipToLegacy(ip);
+      ({ event } = legacy);
+      ({ payload } = legacy);
+    }
+
+    if (event === 'connect') { this.connected = true; }
+    if (event === 'disconnect') { this.connected = false; }
+    return this.emitEvent(event, payload);
+  }
 }
 
 module.exports = { 

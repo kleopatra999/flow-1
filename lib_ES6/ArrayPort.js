@@ -10,7 +10,6 @@ const platform = require('./Platform');
 class ArrayPort extends port.Port{
 
   constructor(type) {
-    if(!type) type = 'all'
     super(type)
     this.type = type;
     platform.deprecated('noflo.ArrayPort is deprecated. Please port to noflo.InPort/noflo.OutPort and use addressable: true');

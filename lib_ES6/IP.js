@@ -21,36 +21,35 @@
   // Creates as new IP object
   // Valid types: 'data', 'openBracket', 'closeBracket'
   constructor(type, data, options) {
-    var key, val;
-    this.type = type != null ? type : 'data';
-    this.data = data != null ? data : null;
-    if (options == null) {
+
+    if (!type)
+      type = 'data';
+    if (!data)
+      data = null;
+    if (!options)
       options = {};
-    }
+
+    this.type = type;
+    this.data = data;
     this._isIP = true;
-    this.scope = null;
-    this.owner = null;
-    this.clonable = false;
-    this.index = null;
-    for (key in options) {
-      val = options[key];
+    this.scope = null; // sync scope id
+    this.owner = null; // packet owner process
+    this.clonable = false; // cloning safety flag
+    this.index = null; // addressable port index
+    for (let key in options) {
+      let val = options[key];
       this[key] = val;
     }
   }
 
   // Creates a new IP copying its contents by value not reference
   clone() {
-    var ip, key, val;
-    ip = new IP(this.type);
-    for (key in this) {
-      val = this[key];
-      if (['owner'].indexOf(key) !== -1) {
-        continue;
-      }
-      if (val === null) {
-        continue;
-      }
-      if (typeof val === 'object') {
+    let ip = new IP(this.type);
+    for (let key in this) {
+      let val = this[key];
+      if (['owner'].indexOf(key) !== -1) { continue; }
+      if (val === null) { continue; }
+      if (typeof (val) === 'object') {
         ip[key] = JSON.parse(JSON.stringify(val));
       } else {
         ip[key] = val;
@@ -67,13 +66,14 @@
 
   // Frees IP contents
   drop() {
-    var key, results, val;
-    results = [];
-    for (key in this) {
-      val = this[key];
-      results.push(delete this[key]);
-    }
-    return results;
+    return (() => {
+      let result = [];
+      for (let key in this) {
+        let val = this[key];
+        result.push(delete this[key]);
+      }
+      return result;
+    })();
   }
 };
 
